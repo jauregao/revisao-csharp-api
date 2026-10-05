@@ -12,9 +12,9 @@ Vamos construir os primeiros endpoints da nossa API, retomando C#, HTTP e modela
 | [ProdutosController.cs](../base/plantao-1/Controllers/ProdutosController.cs) | Lista em memória, consultas e cadastro |
 | [Program.cs](../base/plantao-1/Program.cs)                                   | Configuração da API                    |
 
-## 1. Abra a base e observe a resposta
+## 1. Base da API e HTTP
 
-No terminal em `base/plantao-1`, execute:
+Pasta: `base/back`
 
 ```powershell
 dotnet restore
@@ -24,17 +24,107 @@ dotnet run --launch-profile http
 
 Abra `http://localhost:5026/swagger`. O exemplo já inclui listagem, busca por ID e cadastro.
 
-O Swagger faz o papel de cliente; a API é o servidor. HTTP define a troca de requisições e respostas; JSON é o formato dos dados. Na organização REST, `/api/produtos` identifica o recurso e os métodos indicam operações: GET consulta, POST cria, PUT atualiza e DELETE remove. Nesta parte, implementaremos GET e POST; a Parte 2 completa o CRUD.
+O Swagger envia requisições para nossa API e mostra as respostas. Usaremos HTTP para essa comunicação e JSON para representar os dados.
 
-Os arquivos iniciais têm responsabilidades diferentes: [Program.cs](../base/plantao-1/Program.cs) configura a aplicação; [RevisaoProdutos.csproj](../base/plantao-1/RevisaoProdutos.csproj) declara a versão do .NET e os pacotes usados; [appsettings.json](../base/plantao-1/appsettings.json) contém configurações, como o nível de detalhe dos logs.
+Arquivos iniciais:
 
-Em `Program.cs`, `AddControllers()` registra os recursos usados pelos Controllers; `AddSwaggerGen()` prepara a descrição da API; `UseSwagger()` e `UseSwaggerUI()` disponibilizam essa descrição e sua interface no ambiente de desenvolvimento. `MapControllers()` conecta as rotas dos Controllers à aplicação e `Run()` inicia o servidor.
+- [Program.cs](../base/back/Program.cs): configura e inicia a API.
+- [RevisaoProdutos.csproj](../base/back/RevisaoProdutos.csproj): define a versão do .NET e os pacotes.
+- [appsettings.json](../base/back/appsettings.json): guarda configurações, como os logs.
 
-Pare a API com `Ctrl+C` antes de editar. Após cada etapa, use `dotnet build` para conferir a compilação e `dotnet run --launch-profile http` para testar a versão atualizada.
+Em `Program.cs`, `AddControllers()` registra os Controllers, `MapControllers()` conecta suas rotas e `Run()` inicia o servidor. `AddSwaggerGen()`, `UseSwagger()` e `UseSwaggerUI()` preparam e disponibilizam o Swagger.
+
+`restore` prepara os pacotes; `build` compila o código; `run` inicia a API. `Ctrl+C` encerra a aplicação.
+
+### 1.1. O que vai em uma requisição HTTP?
+
+Uma requisição solicita uma operação à API. Ela contém método, endereço, headers e, quando necessário, body.
+
+Exemplo simplificado do cadastro em HTTP/1.1:
+
+```http
+POST /api/produtos HTTP/1.1
+Host: localhost:5027
+Content-Type: application/json
+Accept: application/json
+
+{"nome":"Caderno","preco":25.9}
+```
+
+| Parte   | Neste exemplo                                                           |
+| ------- | ----------------------------------------------------------------------- |
+| Método  | `POST`: cadastrar um produto                                            |
+| Caminho | `/api/produtos`: recurso acessado                                       |
+| Headers | `Content-Type`: formato enviado; `Accept`: formato desejado na resposta |
+| Body    | JSON com nome e preço                                                   |
+
+A resposta tem status, headers e, quando houver conteúdo, body. Um cadastro válido retorna 201, o produto em JSON e o header `Location` com seu endereço de consulta. Já nosso GET envia uma requisição sem body e recebe uma lista na resposta.
+
+### 1.2. URL e as partes do endereço
+
+URL é o endereço usado para acessar um recurso:
+
+```text
+http://localhost:5027/api/produtos?nome=caderno
+```
+
+| Parte           | Exemplo         | Significado                                   |
+| --------------- | --------------- | --------------------------------------------- |
+| Protocolo       | `http`          | Como acessamos a API; HTTPS protege a conexão |
+| Host ou domínio | `localhost`     | Servidor acessado; aqui, o próprio computador |
+| Porta           | `5027`          | Porta em que a API está executando            |
+| Caminho         | `/api/produtos` | Recurso acessado                              |
+| Query           | `?nome=caderno` | Parâmetro usado para filtrar a consulta       |
+
+Em uma API publicada, o host pode ser um domínio, como `api.exemplo.com`. `localhost` é um nome reservado para o próprio computador.
+
+Uma rota define o caminho aceito pela aplicação. O endpoint combina método e rota: `GET /api/produtos` consulta, enquanto `POST /api/produtos` cadastra no mesmo endereço.
+
+### 1.3. Métodos e status que vamos encontrar
+
+| Método | Para que serve                       | Exemplo                                            |
+| ------ | ------------------------------------ | -------------------------------------------------- |
+| GET    | Consultar dados                      | `GET /api/produtos/1`                              |
+| POST   | Criar um recurso                     | `POST /api/produtos` com nome e preço no body      |
+| PUT    | Atualizar a representação do recurso | `PUT /api/produtos/1` com nome e preço no body     |
+| PATCH  | Atualizar parte do recurso           | Alterar apenas o preço; não será implementado aqui |
+| DELETE | Remover um recurso                   | `DELETE /api/produtos/1`                           |
+
+Nesta parte, implementaremos GET e POST. PUT e DELETE ficam para a Parte 2.
+
+O status informa o resultado: 2xx indica sucesso, 4xx indica erro na requisição e 5xx indica erro no servidor.
+
+| Status                     | Exemplo nesta API                                                 |
+| -------------------------- | ----------------------------------------------------------------- |
+| 200 OK                     | Consulta concluída, inclusive uma lista vazia                     |
+| 201 Created                | Produto cadastrado                                                |
+| 204 No Content             | Exclusão concluída, sem corpo de resposta, na Parte 2             |
+| 400 Bad Request            | Nome vazio, preço inválido ou dados que não podem ser convertidos |
+| 404 Not Found              | Produto ou rota não encontrado                                    |
+| 405 Method Not Allowed     | Método não disponível para uma rota existente                     |
+| 415 Unsupported Media Type | Formato do body não aceito pelo endpoint                          |
+| 500 Internal Server Error  | Falha inesperada na aplicação                                     |
+
+### 1.4. Onde enviamos cada dado?
+
+Os dados podem chegar em lugares diferentes da requisição:
+
+| Origem            | Exemplo                           | Uso neste projeto                |
+| ----------------- | --------------------------------- | -------------------------------- |
+| Parâmetro de rota | `/api/produtos/1`                 | Identificar o produto consultado |
+| Query string      | `/api/produtos?nome=caderno`      | Filtrar a coleção por nome       |
+| Body              | `{"nome":"Caderno","preco":25.9}` | Enviar os dados do cadastro      |
+
+- A query começa com `?`. Mais parâmetros são separados por `&`: `?nome=caderno&pagina=2`.
+- A API precisa implementar cada parâmetro. Aqui, teremos apenas o filtro `nome`.
+- `?id=1` e `/api/produtos/1` são entradas diferentes: query e parâmetro de rota.
+- Os dados enviados na query não preenchem automaticamente o body do cadastro.
 
 ## 2. Crie o model e suas validações
 
-Dentro de `base/plantao-1`, crie a pasta `Models`. Dentro dela, crie o arquivo `Produto.cs` com o código abaixo. O model representa os dados que receberemos e devolveremos na API:
+Arquivo: `base/back/Models/Produto.cs`
+
+Essa classe define os dados de um produto:
 
 ```csharp
 using System.ComponentModel.DataAnnotations;
@@ -54,21 +144,19 @@ public class Produto
 }
 ```
 
-`class Produto` define a estrutura de um produto. Cada objeto dessa classe terá suas próprias propriedades `Id`, `Nome` e `Preco`. `public` permite que outras partes da aplicação acessem a classe e suas propriedades.
+O que cada trecho faz:
 
-Em C#, cada propriedade tem um tipo: `int` guarda o identificador inteiro, `string` guarda o nome e `decimal` guarda o preço. `decimal` é adequado para valores monetários porque representa números decimais com precisão apropriada para esses cálculos. `{ get; set; }` permite ler e atribuir o valor da propriedade. `= string.Empty` inicia o nome com uma string vazia.
+- `class Produto` define os dados de cada produto. `public` permite o acesso por outras partes da aplicação.
+- `int`, `string` e `decimal` representam ID inteiro, nome e preço. `decimal` é adequado para valores monetários.
+- `{ get; set; }` permite ler e atribuir valores. `string.Empty` inicia o nome vazio.
+- `namespace` organiza a classe; `using` disponibiliza os atributos de validação.
+- `[Required]` exige nome preenchido; `[MaxLength(100)]` limita o nome; `[Range(0.01, 10000)]` limita o preço.
 
-`namespace RevisaoProdutos.Models` organiza a classe dentro de um grupo de tipos. `using System.ComponentModel.DataAnnotations` permite usar os atributos de validação desse namespace sem escrever seus nomes completos.
+Esses atributos são as Data Annotations. Com `[ApiController]`, a API responde 400 quando os dados são inválidos. O `ModelState` reúne os resultados da conversão e da validação; nesse caso, o framework o verifica automaticamente.
 
-Os trechos entre colchetes são atributos: acrescentam informações que o framework pode interpretar. `[Required]` exige um nome preenchido; `[MaxLength(100)]` limita seu tamanho; `[Range(0.01, 10000)]` define o intervalo permitido para o preço. Declarar `string` define o tipo do nome, mas não garante, sozinho, que ele contenha texto. Essas regras são as Data Annotations vistas na modelagem.
+## 3. Controller e endpoints
 
-Na próxima etapa, o atributo `[ApiController]` ativará a resposta automática 400 para entradas que descumprirem essas regras. O `ModelState` reúne os resultados da conversão dos dados recebidos e da validação; nesse comportamento padrão, não precisamos verificá-lo manualmente em cada ação.
-
-## 3. Crie o Controller e implemente os endpoints
-
-### 3.1. Crie a listagem de produtos
-
-Dentro de `base/plantao-1`, crie a pasta `Controllers` e, dentro dela, o arquivo `ProdutosController.cs`. Comece com:
+Arquivo: `base/back/Controllers/ProdutosController.cs`
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
@@ -81,34 +169,26 @@ namespace RevisaoProdutos.Controllers;
 public class ProdutosController : ControllerBase
 {
     private static readonly List<Produto> Produtos = new();
+    private static int _proximoId = 1;
 
     [HttpGet]
-    public ActionResult<List<Produto>> Listar()
+    public ActionResult<List<Produto>> Listar([FromQuery] string? nome)
     {
-        return Ok(Produtos);
+        if (string.IsNullOrWhiteSpace(nome))
+        {
+            return Ok(Produtos);
+        }
+
+        var filtrados = Produtos
+            .Where(produto => produto.Nome.Contains(
+                nome.Trim(), StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        return Ok(filtrados);
     }
-}
-```
 
-`using RevisaoProdutos.Models` permite usar a classe que criamos. O Controller herda de `ControllerBase`, que oferece respostas como `Ok()` e `NotFound()`. `[Route("api/produtos")]` define o endereço do recurso e `[HttpGet]` associa `Listar()` às requisições GET nesse endereço.
-
-`List<Produto>` é uma lista tipada: seus elementos são objetos `Produto`. `new()` cria uma lista vazia do tipo declarado. `private` restringe o acesso ao campo à própria classe; `readonly` impede trocar a referência da lista, mas permite adicionar produtos.
-
-`static` faz a lista ser compartilhada entre as instâncias do Controller. Assim, um produto cadastrado pode ser consultado em outra requisição. Os dados continuam na memória do processo: encerrar a API apaga a lista. Na Parte 2, usaremos o banco para persistir os produtos.
-
-`Listar()` é um método público. Seu retorno `ActionResult<List<Produto>>` permite devolver uma lista de produtos ou uma resposta HTTP, como um erro. `Ok(Produtos)` devolve status 200, e o ASP.NET Core serializa a lista para JSON.
-
-Uma lista vazia aparece como `[]`: a consulta funcionou, apenas não há produtos. Por isso, a listagem retorna 200. O status 404 será usado na consulta de um produto específico quando ele não existir.
-
-Compile, execute a API e teste `GET /api/produtos` no Swagger. Agora o resultado será **200** com `[]`.
-
-### 3.2. Acrescente a busca por ID
-
-Pare a API. No mesmo arquivo, adicione este método **dentro da classe**, depois de `Listar()` e antes da última chave `}`:
-
-```csharp
     [HttpGet("{id:int}")]
-    public ActionResult<Produto> BuscarPorId(int id)
+    public ActionResult<Produto> BuscarPorId([FromRoute] int id)
     {
         var produto = Produtos.FirstOrDefault(item => item.Id == id);
         if (produto is null)
@@ -117,27 +197,7 @@ Pare a API. No mesmo arquivo, adicione este método **dentro da classe**, depois
         }
         return Ok(produto);
     }
-```
 
-`[HttpGet("{id:int}")]` acrescenta um ID inteiro à rota, como `/api/produtos/1`. O parâmetro `int id` recebe o valor da URL. A busca retorna 200 quando encontra o produto e 404 quando não encontra.
-
-`FirstOrDefault` devolve o primeiro produto que atende ao filtro, ou `null` se nenhum for encontrado. A expressão `item => item.Id == id` é uma função lambda: para cada item, verifica se seu ID é igual ao recebido na URL.
-
-`var` deixa o compilador inferir o tipo da variável a partir da expressão atribuída; a variável continua tendo um tipo definido. `if (produto is null)` trata a ausência antes de devolver os dados. `return NotFound()` encerra o método com status 404; se houver um produto, `return Ok(produto)` devolve 200 com seu JSON.
-
-Compile, execute e teste `GET /api/produtos/1`. Como ainda não cadastramos produtos, espere **404**.
-
-### 3.3. Acrescente o cadastro
-
-Pare a API. Dentro da classe, logo abaixo da declaração da lista `Produtos`, adicione o contador:
-
-```csharp
-    private static int _proximoId = 1;
-```
-
-Depois de `BuscarPorId()` e antes da última chave da classe, acrescente:
-
-```csharp
     [HttpPost]
     public ActionResult<Produto> Cadastrar([FromBody] Produto produto)
     {
@@ -148,21 +208,54 @@ Depois de `BuscarPorId()` e antes da última chave da classe, acrescente:
         return CreatedAtAction(
             nameof(BuscarPorId), new { id = produto.Id }, produto);
     }
+}
 ```
 
-`[HttpPost]` associa o método ao cadastro. `[FromBody] Produto produto` indica que o corpo JSON da requisição deve ser convertido em um objeto `Produto`. Antes de executar o método, a API valida os atributos desse objeto: uma entrada inválida recebe 400 e não chega à lista.
+### 3.1. Estrutura do Controller
 
-`_proximoId++` entrega o ID atual e incrementa o contador para o próximo cadastro. Como o contador também é `static`, ele é compartilhado entre requisições. O cliente não decide o ID. `Trim()` remove espaços das pontas do nome e `Produtos.Add(produto)` adiciona o objeto à lista.
+- `using RevisaoProdutos.Models` permite usar `Produto`.
+- `ControllerBase` fornece respostas como `Ok()` e `NotFound()`.
+- `[Route("api/produtos")]` define o caminho; os atributos `[HttpGet]` e `[HttpPost]` definem os métodos HTTP.
+- `ActionResult<T>` permite retornar dados do tipo `T` ou outro resultado HTTP.
+- `List<Produto>` guarda os produtos; `new()` cria a lista vazia.
+- `private` restringe o acesso ao campo à classe. `readonly` impede trocar a referência da lista, mas permite adicionar itens.
+- `static` compartilha a lista e o contador entre as instâncias do Controller. Os dados ficam na memória e somem quando a API encerra.
 
-`CreatedAtAction` devolve 201, o produto criado e um header `Location` para sua consulta. `nameof(BuscarPorId)` obtém o nome do método de busca; `new { id = produto.Id }` cria um objeto anônimo com o parâmetro necessário para montar essa URL.
+### 3.2. Listagem e filtro por query
 
-Nesta versão, o Controller recebe a requisição, manipula a lista e escolhe a resposta HTTP. Na Parte 2, vamos distribuir essas responsabilidades entre as camadas.
+`GET /api/produtos` retorna todos os produtos. `GET /api/produtos?nome=caderno` filtra pelo nome.
 
-Compile e execute novamente. O Controller agora terá os métodos `Listar`, `BuscarPorId` e `Cadastrar`, além da lista e do contador. Confira se todos estão dentro das chaves da classe.
+- `[FromQuery]` lê `nome` da query string. `string?` permite `null` quando o parâmetro não é enviado.
+- `IsNullOrWhiteSpace` identifica nome ausente, vazio ou só com espaços. Nesses casos, a resposta inclui a lista completa.
+- `Where` seleciona os produtos; `Contains` procura o texto no nome; `OrdinalIgnoreCase` ignora maiúsculas e minúsculas.
+- `ToList()` reúne os resultados sem alterar os cadastros.
+- `Ok()` retorna 200, e o ASP.NET Core converte a lista para JSON. Sem resultados, a resposta é 200 com `[]`.
 
-## 4. Teste no Swagger
+### 3.3. Busca por parâmetro de rota
 
-Clique em **Try it out**, preencha a requisição e execute. Cadastre:
+`GET /api/produtos/1` consulta o produto de ID 1.
+
+- `[FromRoute]` lê o ID do caminho. O framework também reconhece essa origem quando o nome corresponde ao parâmetro da rota.
+- `{id:int}` exige um inteiro. `/api/produtos/abc` retorna 404 porque não corresponde à rota.
+- `FirstOrDefault` retorna o primeiro produto encontrado ou `null`. A lambda `item => item.Id == id` compara os IDs.
+- `var` faz o compilador deduzir o tipo da variável; ela continua tendo um tipo definido.
+- `NotFound()` retorna 404 quando o produto não existe; `Ok(produto)` retorna 200 com seus dados.
+
+### 3.4. Cadastro pelo body
+
+`POST /api/produtos` recebe nome e preço em JSON.
+
+- `[FromBody]` converte o JSON em um objeto `Produto`. Com `[ApiController]`, dados inválidos recebem 400 antes de chamar `Cadastrar()`.
+- `_proximoId++` usa o ID atual e aumenta o contador. A API define o ID do produto.
+- `Trim()` remove espaços no início e no fim do nome; `Add()` guarda o produto na lista.
+- `CreatedAtAction` retorna 201, o produto criado e seu endereço no header `Location`.
+- `nameof(BuscarPorId)` fornece o nome do método de consulta; `new { id = produto.Id }` cria um objeto anônimo com o ID usado na URL.
+
+Nesta versão, o Controller recebe a requisição, manipula a lista e escolhe a resposta. Na Parte 2, essas tarefas serão separadas em camadas.
+
+## 4. Exemplos no Swagger
+
+Body de um cadastro válido (`POST /api/produtos`):
 
 ```json
 {
@@ -173,35 +266,56 @@ Clique em **Try it out**, preencha a requisição e execute. Cadastre:
 
 JSON usa ponto nas casas decimais. Não é necessário enviar ID.
 
-| Teste                                    | Resultado esperado                    |
-| ---------------------------------------- | ------------------------------------- |
-| GET da lista antes do cadastro           | 200 e lista vazia                     |
-| POST válido                              | 201, produto com ID e header Location |
-| GET pelo ID retornado                    | 200 e produto cadastrado              |
-| GET com ID inexistente, por exemplo 9999 | 404                                   |
-| POST com nome vazio                      | 400                                   |
-| POST com preço -5                        | 400                                   |
-| GET após os dois cadastros inválidos     | Apenas os produtos válidos            |
+No Swagger:
 
-Observe o corpo do erro 400: ele informa quais campos falharam. Confirme que a requisição inválida não chegou a cadastrar. A validação depende dos atributos do model e do comportamento de `[ApiController]`.
+- `Request URL` mostra o endereço completo da requisição.
+- Na busca por ID, preencha `id`; na listagem, preencha `nome` ou deixe-o vazio.
+- No POST, envie o JSON em `Request body`.
+- Confira o status, `Response headers` e `Response body`. No cadastro válido, `Location` aponta para a consulta do produto criado.
+
+| Teste                                         | Resultado esperado                    |
+| --------------------------------------------- | ------------------------------------- |
+| GET da lista antes do cadastro                | 200 e lista vazia                     |
+| POST válido                                   | 201, produto com ID e header Location |
+| GET pelo ID retornado                         | 200 e produto cadastrado              |
+| GET com ID inexistente, por exemplo 9999      | 404                                   |
+| POST com nome vazio                           | 400                                   |
+| POST com preço -5                             | 400                                   |
+| GET após os dois cadastros inválidos          | Apenas os produtos válidos            |
+| GET com `nome=caderno` após cadastrar Caderno | 200 e os produtos correspondentes     |
+| GET com `nome=xyz-inexistente`                | 200 e lista vazia                     |
+
+O corpo da resposta 400 informa quais campos falharam. Consulte a lista para confirmar que o produto inválido não foi cadastrado. Essa validação usa os atributos do model e `[ApiController]`.
 
 Encerre e reinicie a API: a lista fica vazia porque seus dados estavam na memória do processo. Na Parte 2, compararemos esse comportamento com o SQLite.
 
 ## 5. O caminho de uma requisição e o registro das alterações
 
-No cadastro, o caminho é: JSON → objeto Produto → validação → método Cadastrar → lista → resposta 201. Quando a entrada é inválida, a API responde 400 antes de executar `Cadastrar`. Na consulta por ID, a busca encontra um objeto e devolve 200, ou encontra `null` e devolve 404.
+O cadastro segue este caminho:
 
-Pelo Source Control do VS Code, revise os arquivos alterados e faça um commit, para registrar a versão que construímos. Os arquivos gerados, dependências e bancos estão no `.gitignore`. Se esta pasta já pertence a um repositório, utilize esse repositório; caso seja uma cópia independente, inicialize-o pelo VS Code. A publicação no GitHub pode ser feita ao concluir o projeto em seu próprio repositório.
+```text
+JSON → objeto Produto → validação → método Cadastrar → lista → resposta 201
+```
 
-## Para praticar: testar e justificar as validações
+Se os dados forem inválidos, a API responde 400 antes de chamar `Cadastrar`. Na busca por ID, retorna 200 quando encontra o produto e 404 quando a busca resulta em `null`.
 
-Cadastre dois produtos válidos e prepare uma tabela com requisição enviada, status recebido e explicação para cada caso:
+Revise as alterações pelo Source Control do VS Code e faça um commit. O `.gitignore` exclui arquivos gerados, dependências e bancos.
+
+Se a pasta já estiver em um repositório, use-o. Se estiver trabalhando com uma cópia independente, inicialize um repositório pelo VS Code. Ao concluir, você pode publicar o projeto no seu GitHub.
+
+## Para praticar: requisições, parâmetros e validações
+
+Cadastre dois produtos válidos com nomes diferentes. Prepare uma tabela com método, URL, body enviado quando houver, status recebido e explicação para cada caso:
 
 1. Nome vazio.
 2. Nome com mais de 100 caracteres.
 3. Preço zero.
 4. Preço acima de 10.000.
 5. Busca de ID inexistente.
+6. Listagem sem filtro e com filtro por um dos nomes cadastrados.
+7. Filtro que não encontra nenhum produto.
+
+Em uma busca por ID, identifique o dado enviado na rota. Em uma listagem filtrada, identifique o dado enviado na query. Em um cadastro válido, identifique os headers, o body e o `Location` retornado. Explique por que o filtro sem resultados recebe 200, enquanto a busca de um ID inexistente recebe 404.
 
 Confirme que nenhum cadastro inválido aparece na lista. Depois, reinicie a API e explique por que os produtos sumiram. Você pode usar um arquivo Markdown para registrar os resultados.
 
