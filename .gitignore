@@ -3,6 +3,7 @@
 *.db
 *.db-shm
 *.db-wal
-apoio
-plantao-2
 .vscode
+**/node_modules/
+**/dist/
+**/.angular/

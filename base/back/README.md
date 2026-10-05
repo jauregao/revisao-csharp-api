@@ -1,7 +1,36 @@
-# Nossa API de produtos
+# API completa: parte 2
 
-Vamos começar nesta pasta. Execute `dotnet restore` e depois `dotnet run --launch-profile http`. Abra `http://localhost:5027/swagger`.
+CRUD de produtos com validação, SQLite, Entity Framework Core, camadas e CORS para `http://localhost:4200`.
 
-A base contém somente a configuração inicial da API e do Swagger. Ao abrir o Swagger, ainda não haverá endpoints: a mensagem `No operations defined in spec!` é esperada.
+## Arquivos
 
-Na [Parte 1](../../plantao-1/README.md), vamos criar as pastas, o model, as validações e os endpoints GET/POST passo a passo. Na [Parte 2](../../plantao-2/README.md), continuaremos nesta mesma API com camadas, SQLite, atualização e exclusão.
+| Arquivo                                                     | Responsabilidade                                                 |
+| ----------------------------------------------------------- | ---------------------------------------------------------------- |
+| [Program.cs](Program.cs)                                    | Inicialização, dependências, Swagger, CORS e tratamento de erros |
+| [Produto.cs](Models/Produto.cs)                             | Dados e validações do produto                                    |
+| [ProdutosController.cs](Controllers/ProdutosController.cs)  | Endpoints GET, POST, PUT e DELETE                                |
+| [IProdutoService.cs](Services/IProdutoService.cs)           | Contrato do Service                                              |
+| [ProdutoService.cs](Services/ProdutoService.cs)             | Cadastro, atualização e exclusão                                 |
+| [IProdutoRepository.cs](Repositories/IProdutoRepository.cs) | Contrato do Repository                                           |
+| [ProdutoRepository.cs](Repositories/ProdutoRepository.cs)   | Consultas e gravações no banco                                   |
+| [AppDbContext.cs](Data/AppDbContext.cs)                     | Contexto do Entity Framework Core                                |
+| [Migrations](Migrations)                                    | Criação da tabela de produtos                                    |
+| [RevisaoProdutos.csproj](RevisaoProdutos.csproj)            | Versão do .NET e pacotes                                         |
+
+## Executar
+
+Na pasta `base/back`, com .NET SDK 8 e `dotnet-ef` 8.0.20:
+
+```powershell
+dotnet restore
+dotnet ef database update
+dotnet run --launch-profile http
+```
+
+Se necessário, instale a ferramenta com `dotnet tool install --global dotnet-ef --version 8.0.20`.
+
+Swagger: `http://localhost:5027/swagger`. A atualização cria `revisao.db` usando a migration incluída. Execute os comandos nesta pasta para usar o mesmo arquivo SQLite.
+
+[Conteúdo da parte 2](../../plantao-2/README.md) · [Versão em memória da parte 1](../plantao-1/README.md)
+
+[Angular conectado a esta API](../front/README.md)

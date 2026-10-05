@@ -1,11 +1,20 @@
 # Parte 1: C#, HTTP e produtos em memória
+
 ### Ler o projeto, modelar produtos, validar os campos, cadastrar e consultar com GET/POST
 
-Vamos construir os primeiros endpoints da nossa API, retomando C#, HTTP e modelagem. A base contém apenas a configuração inicial da aplicação e do Swagger. Vamos criar o model Produto, suas validações e os endpoints de listagem, busca por ID e cadastro.
+Vamos construir os primeiros endpoints da nossa API, retomando C#, HTTP e modelagem. O exemplo completo está em [base/plantao-1](../base/plantao-1/README.md). Vamos criar o model Produto, suas validações e os endpoints de listagem, busca por ID e cadastro.
+
+## Arquivos do exemplo
+
+| Arquivo                                                                      | Conteúdo                               |
+| ---------------------------------------------------------------------------- | -------------------------------------- |
+| [Produto.cs](../base/plantao-1/Models/Produto.cs)                            | Model e validação                      |
+| [ProdutosController.cs](../base/plantao-1/Controllers/ProdutosController.cs) | Lista em memória, consultas e cadastro |
+| [Program.cs](../base/plantao-1/Program.cs)                                   | Configuração da API                    |
 
 ## 1. Abra a base e observe a resposta
 
-No terminal em `base/back`, execute:
+No terminal em `base/plantao-1`, execute:
 
 ```powershell
 dotnet restore
@@ -13,11 +22,11 @@ dotnet build
 dotnet run --launch-profile http
 ```
 
-Abra `http://localhost:5027/swagger`. Ainda não há endpoints: a mensagem `No operations defined in spec!` é esperada. Vamos criar as operações nas próximas etapas.
+Abra `http://localhost:5026/swagger`. O exemplo já inclui listagem, busca por ID e cadastro.
 
 O Swagger faz o papel de cliente; a API é o servidor. HTTP define a troca de requisições e respostas; JSON é o formato dos dados. Na organização REST, `/api/produtos` identifica o recurso e os métodos indicam operações: GET consulta, POST cria, PUT atualiza e DELETE remove. Nesta parte, implementaremos GET e POST; a Parte 2 completa o CRUD.
 
-Os arquivos iniciais têm responsabilidades diferentes: [Program.cs](../base/back/Program.cs) configura a aplicação; [RevisaoProdutos.csproj](../base/back/RevisaoProdutos.csproj) declara a versão do .NET e os pacotes usados; [appsettings.json](../base/back/appsettings.json) contém configurações, como o nível de detalhe dos logs.
+Os arquivos iniciais têm responsabilidades diferentes: [Program.cs](../base/plantao-1/Program.cs) configura a aplicação; [RevisaoProdutos.csproj](../base/plantao-1/RevisaoProdutos.csproj) declara a versão do .NET e os pacotes usados; [appsettings.json](../base/plantao-1/appsettings.json) contém configurações, como o nível de detalhe dos logs.
 
 Em `Program.cs`, `AddControllers()` registra os recursos usados pelos Controllers; `AddSwaggerGen()` prepara a descrição da API; `UseSwagger()` e `UseSwaggerUI()` disponibilizam essa descrição e sua interface no ambiente de desenvolvimento. `MapControllers()` conecta as rotas dos Controllers à aplicação e `Run()` inicia o servidor.
 
@@ -25,7 +34,7 @@ Pare a API com `Ctrl+C` antes de editar. Após cada etapa, use `dotnet build` pa
 
 ## 2. Crie o model e suas validações
 
-Dentro de `base/back`, crie a pasta `Models`. Dentro dela, crie o arquivo `Produto.cs` com o código abaixo. O model representa os dados que receberemos e devolveremos na API:
+Dentro de `base/plantao-1`, crie a pasta `Models`. Dentro dela, crie o arquivo `Produto.cs` com o código abaixo. O model representa os dados que receberemos e devolveremos na API:
 
 ```csharp
 using System.ComponentModel.DataAnnotations;
@@ -59,7 +68,7 @@ Na próxima etapa, o atributo `[ApiController]` ativará a resposta automática 
 
 ### 3.1. Crie a listagem de produtos
 
-Dentro de `base/back`, crie a pasta `Controllers` e, dentro dela, o arquivo `ProdutosController.cs`. Comece com:
+Dentro de `base/plantao-1`, crie a pasta `Controllers` e, dentro dela, o arquivo `ProdutosController.cs`. Comece com:
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
